@@ -16,19 +16,33 @@ backup(){
         local FOLDER_NAME_BACKUP_TMP="backup-tmp"
         
         # Récupération du backup du serveur
-        # pull_backup "${SERVER[BACKUP_USER]}" "${SERVER[IP]}" "${SERVER[FOLDER_BACKUP_SOURCE]}" "${SERVER[FOLDER_BACKUP_TARGET]}/$FOLDER_NAME_BACKUP_TMP" 
+        pull_backup \
+            "${SERVER[BACKUP_USER]}" \
+            "${SERVER[IP]}" \
+            "${SERVER[FOLDER_BACKUP_SOURCE]}" \
+            "${SERVER[FOLDER_BACKUP_TARGET]}/$FOLDER_NAME_BACKUP_TMP" 
 
         # Compression du backup
-        # compress_folder "${SERVER[FOLDER_BACKUP_TARGET]}" "${SERVER[NAME]}" "${SERVER[FOLDER_BACKUP_TARGET]}/$FOLDER_NAME_BACKUP_TMP" "${server_name}$(date +%Y-%m-%d-%H-%M-%S__%s__).tar.gz"
+        compress_folder \
+            "${SERVER[FOLDER_BACKUP_TARGET]}" \
+            "${SERVER[NAME]}" \
+            "${SERVER[FOLDER_BACKUP_TARGET]}/$FOLDER_NAME_BACKUP_TMP" \
+            "${server_name}$(date +%Y-%m-%d-%H-%M-%S__%s__).tar.gz"
 
         # Sauvegarde du timestamp du dernier backup 
-        # save_timestamp_last_backup "${SERVER[BACKUP_USER]}" "${SERVER[IP]}" "${SERVER[FOLDER_BACKUP_CONF]}"
+        save_timestamp_last_backup \
+            "${SERVER[BACKUP_USER]}" \
+            "${SERVER[IP]}" \
+            "${SERVER[FOLDER_BACKUP_CONF]}"
 
         # Supprime les anciens backups 
-        # delete_old_backup "${SERVER[FOLDER_BACKUP_TARGET]}"
+        delete_old_backup "${SERVER[FOLDER_BACKUP_TARGET]}"
 
         # Notification par SMS du backup terminée
-        # discord_notify "success" "✅ Backup" "Le serveur ${SERVER[NAME]} à bien été sauvegardé !"
+        discord_notify \
+            "success" \
+            "✅ Backup" \
+            "Le serveur ${SERVER[NAME]} à bien été sauvegardé !"
     done
 }
 
@@ -45,7 +59,10 @@ pull_backup(){
     local folder_source="$3"
     local folder_target="$4"
 
-    rsync -aAXHvzog --numeric-ids -o -g $server_user@$server_ip:$folder_source --exclude={"/dev/","/proc/","/sys/","/tmp/","/run/","/mnt/","/media/","/lost+found"} "$folder_target/backup-tmp"
+    rsync -aAXHvzog \
+        --numeric-ids -o -g $server_user@$server_ip:$folder_source \
+        --exclude={"/dev/","/proc/","/sys/","/tmp/","/run/","/mnt/","/media/","/lost+found"} \
+        "$folder_target/backup-tmp"
 }
 
 #---
