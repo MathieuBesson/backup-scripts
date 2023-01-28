@@ -1,7 +1,8 @@
 #!/bin/bash
 
-source ${BASH_SOURCE%/*}/var.sh
-source ${BASH_SOURCE%/*}/function.sh
+source ${BASH_SOURCE%/*}/../secrets/var.sh
+source ${BASH_SOURCE%/*}/../src/function.sh
+source ${BASH_SOURCE%/*}/../utils/pre-script.sh
 
 $timestamp_last_backup=$(cat $BACKUP_FOLDER_CONF/timestamp-last-backup)
 $timestamp_backup_warning=$(date -d "-3 month" +"%s")

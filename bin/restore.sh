@@ -3,8 +3,9 @@
 # Script de restauration d'un serveur 
 # Utilisation `restore pluton pluton2023-01-19-15-52-39_1674139959_.tar.gz`
 
-source ${BASH_SOURCE%/*}/var.sh
-source ${BASH_SOURCE%/*}/pre-script.sh
+source ${BASH_SOURCE%/*}/../secrets/var.sh
+source ${BASH_SOURCE%/*}/../src/function.sh
+source ${BASH_SOURCE%/*}/../utils/pre-script.sh
 
 #---
 ## DEFINITION : Restauration d'un serveur 

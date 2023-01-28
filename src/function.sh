@@ -9,11 +9,11 @@
 ##              $type : Type de message (success, danger...)
 #---
 discord_notify(){
-    local type="$1"
-    local title="$2"
-    local content="$3"
+  local type="$1"
+  local title="$2"
+  local content="$3"
 
-    curl -H \"Content-Type: application/json" -X POST -d "$(generate_post_data $title $content $type)\" $DISCORD_WEBHOOK_URL
+  curl -H \"Content-Type: application/json" -X POST -d "$(generate_post_data $title $content $type)\" $DISCORD_WEBHOOK_URL
 }
 
 #---
@@ -23,16 +23,16 @@ discord_notify(){
 ##              $type : Type de message (success, danger...)
 #---
 generate_post_data() {
-    local title="$1"
-    local content="$2"
-    local type="$3"
+  local title="$1"
+  local content="$2"
+  local type="$3"
 
-    local color="2719971"
-    if $type == "success"; then
-        color="45973"
-    else if $type == "danger"; then
-        color="14887209"
-    fi 
+  local color="2719971"
+  if $type == "success"; then
+      color="45973"
+  else if $type == "danger"; then
+      color="14887209"
+  fi 
 
   cat <<EOF
 {
@@ -43,4 +43,17 @@ generate_post_data() {
   }]
 }
 EOF
+}
+
+#---
+## DEFINITION : Vérifie que l'utilisateur lançant la commande est le bon
+## PARAMETERS : $user : Utilisateur autorisé à lancer la commande
+#---
+check_is_launcher_user(){
+  local user="$1"
+
+  if [ "$USER" -ne $user ]; then
+    echo "Ce script est à lancer avec l'utilisateur $user"
+    exit
+  fi
 }

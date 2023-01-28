@@ -2,9 +2,9 @@
 
 # Script de backup des serveurs définis dans ./var.sh
 
-source ${BASH_SOURCE%/*}/var.sh
-source ${BASH_SOURCE%/*}/function.sh
-source ${BASH_SOURCE%/*}/pre-script.sh
+source ${BASH_SOURCE%/*}/../secrets/var.sh
+source ${BASH_SOURCE%/*}/../src/function.sh
+source ${BASH_SOURCE%/*}/../utils/pre-script.sh
 
 #---
 ## DEFINITION : Backup des serveurs configurés sur la machine lançant le script 
