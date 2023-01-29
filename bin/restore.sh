@@ -15,11 +15,16 @@ restore(){
     # Vérifie que les deux paramètres existent
     check_have_required_params $server_name $backup_file
 
-    # Vérifie que le serveur spécifié est présent dans la configration
+    # Vérifie que le serveur spécifié est présent dans la configuration
     check_server_name_param_is_known $server_name
 
     # Récupère la configuration du serveur à restaurer
-    local SERVER=SERVERS[$server_name]
+    for KEY in "${!SERVERS[@]}"; do
+        eval "${SERVERS["$KEY"]}"
+        if [[ ${SERVERS[NAME]} == $server_name ]]; then 
+            break
+        fi
+    done
 
     # Vérifie que le fichier de backup existe
     check_backup_file_exist $SERVER[FOLDER_BACKUP_TARGET]/$backup_file
@@ -58,8 +63,6 @@ check_have_required_params(){
         exit
     fi
 }
-
-
 
 #---
 ## DEFINITION : Vérification de la présence du fichier de backup dans les backup du serveur en question
