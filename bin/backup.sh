@@ -4,7 +4,6 @@
 
 source $(dirname $(realpath ${BASH_SOURCE[0]}))/../utils/pre-script.sh
 
-# exit 
 #---
 ## DEFINITION : Backup des serveurs configurés sur la machine lançant le script 
 #---
@@ -15,8 +14,6 @@ backup(){
         "warning" \
         "🚧 Backup" \
         "Backup des serveurs en cours..."
-
-        exit
 
     # Dans le cas ou un serveur en particulier est spécifié
     if [[ ! -z $server_name ]] ; then
