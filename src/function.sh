@@ -13,7 +13,11 @@ discord_notify(){
   local title="$2"
   local content="$3"
 
-  curl -H \"Content-Type: application/json" -X POST -d "$(generate_post_data $title $content $type)\" $DISCORD_WEBHOOK_URL
+  local body=$(generate_post_data "$title" "$content" "$type")
+
+  echo "$title : $content"
+
+  curl -H "Content-Type: application/json" -X POST -d "$body" $DISCORD_WEBHOOK_URL
 }
 
 #---
@@ -28,11 +32,13 @@ generate_post_data() {
   local type="$3"
 
   local color="2719971"
-  if $type == "success"; then
+  if [[ $type == "success" ]]; then
       color="45973"
-  else if $type == "danger"; then
+  elif [[ $type == "danger" ]]; then
       color="14887209"
-  fi 
+  elif [[ $type == "warning" ]]; then
+      color="15130951"
+  fi
 
   cat <<EOF
 {
@@ -52,8 +58,39 @@ EOF
 check_is_launcher_user(){
   local user="$1"
 
-  if [ "$USER" -ne $user ]; then
+  if [[ $USER != $user ]]; then
     echo "Ce script est à lancer avec l'utilisateur $user"
     exit
   fi
+}
+
+#---
+## DEFINITION : Vérification de la présence du nom du serveur dans la configuration
+## PARAMETERS : $server_name : Nom du serveur à restaurer
+#---
+check_server_name_param_is_known(){
+    local server_name="$1"
+
+    if [[ $(check_serve_exist $server_name) == false ]] ; then
+        echo "Le serveur $server_name n'existe pas dans la configuration de var.sh"
+        exit
+    fi
+}
+
+#---
+## DEFINITION : Vérification de l'existance du serveur dans la configuration de backup
+## PARAMETERS : $server_name : Nom du serveur à restaurer
+#---
+check_serve_exist(){
+    local server_name="$1"
+    local server_exist=1;
+
+    for KEY in "${!SERVERS[@]}"; do
+        eval "${SERVERS["$KEY"]}"
+        if [[ ${SERVER[NAME]} == $server_name ]]; then 
+            server_exist=0
+        fi
+    done
+
+    return $server_exist
 }

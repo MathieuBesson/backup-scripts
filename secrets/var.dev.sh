@@ -10,9 +10,12 @@ SERVER=(
   [FOLDER_BACKUP_SOURCE]="/"
   [FOLDER_BACKUP_TARGET]="/backup/pluton"
   [FOLDER_BACKUP_GLOBAL]="/backup"
-  [FOLDER_BACKUP_CONF]="/etc/backup"
+  [FOLDER_BACKUP_PARAMETERS]="/etc/backup"
+  [NUMBER_OF_DAYS_WITHOUT_WARNING]="90"
 )
 SERVERS["pluton"]=$(declare -p SERVER)
+
+DISCORD_WEBHOOK_URL="https://discord.com/api/webhooks/{id}/{token}"
 
 # Pour boucler sur les infos de SERVERS : 
 # for KEY in "${!SERVERS[@]}"; do

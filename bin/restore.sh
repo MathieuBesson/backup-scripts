@@ -3,9 +3,7 @@
 # Script de restauration d'un serveur 
 # Utilisation `restore pluton pluton2023-01-19-15-52-39_1674139959_.tar.gz`
 
-source ${BASH_SOURCE%/*}/../secrets/var.sh
-source ${BASH_SOURCE%/*}/../src/function.sh
-source ${BASH_SOURCE%/*}/../utils/pre-script.sh
+source $(dirname $(realpath ${BASH_SOURCE[0]}))/../utils/pre-script.sh
 
 #---
 ## DEFINITION : Restauration d'un serveur 
@@ -61,18 +59,7 @@ check_have_required_params(){
     fi
 }
 
-#---
-## DEFINITION : Vérification de la présence du nom du serveur dans la configuration
-## PARAMETERS : $server_name : Nom du serveur à restaurer
-#---
-check_server_name_param_is_known(){
-    local server_name="$1"
 
-    if [[ $(check_serve_exist $server_name) == false ]] ; then
-        echo "Le serveur $server_name n'existe pas dans la configuration de var.sh"
-        exit
-    fi
-}
 
 #---
 ## DEFINITION : Vérification de la présence du fichier de backup dans les backup du serveur en question
@@ -85,24 +72,6 @@ check_backup_file_exist(){
         echo "Le fichier de backup spécifié $backup_file n'existe pas !"
         exit
     fi
-}
-
-#---
-## DEFINITION : Vérification de l'existance du serveur dans la configuration de backup
-## PARAMETERS : $server_name : Nom du serveur à restaurer
-#---
-check_serve_exist(){
-    local server_name="$1"
-    local server_exist=1;
-
-    for KEY in "${!SERVERS[@]}"; do
-        eval "${SERVERS["$KEY"]}"
-        if [[ ${SERVERS[NAME]} == $server_name ]]; then 
-            server_exist=0
-        fi
-    done
-
-    return server_exist
 }
 
 #---
@@ -121,11 +90,15 @@ restore_server(){
     local server_ip="$5"
 
     # Décompression du dossier avec paramètre (nom du fichier)
+    mkdir /tmp/test
+    tar -xvf test.tar.gz -C /tmp/test
+
     cd $backup_folder_target
     tar -xvf $backup_file
 
     # Restauration du serveur depuis le backup
     rsync -aAXHvzog \
+        --delete \
         --numeric-ids $backup_folder_target/$backup_file $server_user@$server_ip:$backup_folder_source \
         --exclude={"/dev/","/proc/","/sys/","/tmp/","/run/","/mnt/","/media/","/lost+found"}
 }

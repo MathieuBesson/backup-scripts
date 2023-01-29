@@ -2,48 +2,70 @@
 
 # Script de backup des serveurs définis dans ./var.sh
 
-source ${BASH_SOURCE%/*}/../secrets/var.sh
-source ${BASH_SOURCE%/*}/../src/function.sh
-source ${BASH_SOURCE%/*}/../utils/pre-script.sh
+source $(dirname $(realpath ${BASH_SOURCE[0]}))/../utils/pre-script.sh
 
+# exit 
 #---
 ## DEFINITION : Backup des serveurs configurés sur la machine lançant le script 
 #---
 backup(){
+    local server_name="$1"
+
+    discord_notify \
+        "warning" \
+        "🚧 Backup" \
+        "Backup des serveurs en cours..."
+
+        exit
+
+    # Dans le cas ou un serveur en particulier est spécifié
+    if [[ ! -z $server_name ]] ; then
+        # Vérification d'une configuration présente 
+        check_server_name_param_is_known $server_name
+    fi
+    
     for KEY in "${!SERVERS[@]}"; do
         eval "${SERVERS["$KEY"]}"
 
-        local FOLDER_NAME_BACKUP_TMP="backup-tmp"
-        
-        # Récupération du backup du serveur
-        pull_backup \
-            "${SERVER[BACKUP_USER]}" \
-            "${SERVER[IP]}" \
-            "${SERVER[FOLDER_BACKUP_SOURCE]}" \
-            "${SERVER[FOLDER_BACKUP_TARGET]}/$FOLDER_NAME_BACKUP_TMP" 
+        # Dans le cas on un seveur est spécifié et qu'il correspond à une conf, ou qu'aucun serveur est spécifié => on backup
+        if [[ ! -z $server_name && $server_name == $KEY ]]  || [[ -z $server_name ]]; then
 
-        # Compression du backup
-        compress_folder \
-            "${SERVER[FOLDER_BACKUP_TARGET]}" \
-            "${SERVER[NAME]}" \
-            "${SERVER[FOLDER_BACKUP_TARGET]}/$FOLDER_NAME_BACKUP_TMP" \
-            "${server_name}$(date +%Y-%m-%d-%H-%M-%S__%s__).tar.gz"
+            local FOLDER_NAME_BACKUP_TMP="backup-tmp"
+                        
+            # Récupération du backup du serveur
+            pull_backup \
+                "${SERVER[BACKUP_USER]}" \
+                "${SERVER[IP]}" \
+                "${SERVER[FOLDER_BACKUP_SOURCE]}" \
+                "${SERVER[FOLDER_BACKUP_TARGET]}/$FOLDER_NAME_BACKUP_TMP" 
 
-        # Sauvegarde du timestamp du dernier backup 
-        save_timestamp_last_backup \
-            "${SERVER[BACKUP_USER]}" \
-            "${SERVER[IP]}" \
-            "${SERVER[FOLDER_BACKUP_CONF]}"
+            # Compression du backup
+            compress_folder \
+                "${SERVER[FOLDER_BACKUP_TARGET]}/$FOLDER_NAME_BACKUP_TMP" \
+                "${SERVER[NAME]}-$(date +%Y-%m-%d-%H-%M-%S_%s_).tar.gz" \
+                "${SERVER[FOLDER_BACKUP_TARGET]}"
 
-        # Supprime les anciens backups 
-        delete_old_backup "${SERVER[FOLDER_BACKUP_TARGET]}"
+            # Sauvegarde du timestamp du dernier backup 
+            save_timestamp_last_backup \
+                "${SERVER[BACKUP_USER]}" \
+                "${SERVER[IP]}" \
+                "${SERVER[FOLDER_BACKUP_PARAMETERS]}"
 
-        # Notification par SMS du backup terminée
-        discord_notify \
-            "success" \
-            "✅ Backup" \
-            "Le serveur ${SERVER[NAME]} à bien été sauvegardé !"
+            # Supprime les anciens backups 
+            delete_old_backup "${SERVER[FOLDER_BACKUP_TARGET]}"
+
+            # Notification par SMS du backup terminée
+            discord_notify \
+                "success" \
+                "✅ Backup ${SERVER[NAME]} (${SERVER[IP]})" \
+                "Le serveur **${SERVER[NAME]}** (${SERVER[IP]}) à bien été sauvegardé !"
+        fi
     done
+
+    discord_notify \
+        "success" \
+        "✅ Backup" \
+        "Backup des serveurs terminé."
 }
 
 #---
@@ -59,10 +81,14 @@ pull_backup(){
     local folder_source="$3"
     local folder_target="$4"
 
-    rsync -aAXHvzog \
+    # Créer les dossiers de backup si inexistants
+    mkdir -p "$folder_target"
+
+    # Récupération du contenu chaud de la machine
+    rsync -aAXHzovg \
         --numeric-ids -o -g $server_user@$server_ip:$folder_source \
         --exclude={"/dev/","/proc/","/sys/","/tmp/","/run/","/mnt/","/media/","/lost+found"} \
-        "$folder_target/backup-tmp"
+        "$folder_target"
 }
 
 #---
@@ -72,31 +98,30 @@ pull_backup(){
 ##              $folder_compress_name : Nom du fichier compresser final 
 #---
 compress_folder(){
-    local parent_folder="$1"
-    local folder_name_to_compress="$2"
-    local folder_compress_name="$3"
+    local folder_to_compress="$1"
+    local folder_compress_name="$2"
+    local folder_store_backup="$3"
 
     # Compression
-    cd $parent_folder
-    tar -zcvf $folder_compress_name $folder_name_to_compress
+    tar -zcf $folder_store_backup/$folder_compress_name -C $folder_to_compress .
 
     # Suppression du fichier d'origine de compression
-    rm -rf $folder_name_to_compress
+    rm -rf $folder_to_compress
 }
 
 #---
 ## DEFINITION : Sauvegarde du timestamp de dernier backup sur le serveur sauvegardé
 ## PARAMETERS : $server_user : Utilisateur avec lequel se connecter sur le serveur à sauvegarder
 ##              $server_ip : Ip du serveur à sauvegarder
-##              $folder_backup_conf : Chemin du dossier de confguration du backup
+##              $FOLDER_BACKUP_PARAMETERS : Chemin du dossier de confguration du backup
 #---
 save_timestamp_last_backup(){
     local server_user="$1"
     local server_ip="$2"
-    local folder_backup_conf="$3"
+    local FOLDER_BACKUP_PARAMETERS="$3"
 
     # Sauvegarde de la date de dernier backup 
-    ssh $server_user@$server_ip "echo $(date +%s) > $folder_backup_conf/timestamp-last-backup"
+    ssh $server_user@$server_ip "echo $(date +%s) > $FOLDER_BACKUP_PARAMETERS/timestamp-last-backup"
 }
 
 #---
@@ -125,4 +150,4 @@ delete_old_backup(){
 }
 
 # Lancement du script
-backup
+backup $1
