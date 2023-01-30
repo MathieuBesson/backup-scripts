@@ -1,0 +1,22 @@
+# Workflow actions deploy backup-scripts project
+name: backup-scripts CD
+
+on:
+    # Trigger push on branch
+    push:
+        branches: [main]
+
+jobs:
+    build:
+        # Type of runner
+        runs-on: ubuntu-latest
+
+        steps:
+            - name: Deploy using ssh
+              uses: appleboy/ssh-action@master
+              with:
+                  host: ${{ secrets.HOST }}
+                  username: ${{ secrets.USERNAME }}
+                  key: ${{ secrets.PRIVATE_KEY }}
+                  port: ${{ secrets.PORT }}
+                  script: git -C /opt/backup-scripts/ pull origin main
