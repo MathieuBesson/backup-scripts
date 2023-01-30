@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Script de restauration d'un serveur 
-# Utilisation `restore ichigo ichigo2023-01-19-15-52-39_1674139959_.tar.gz`
+# Utilisation `restore ichigo ichigo-2023-01-19-15-52-39_1674139959_.tar.gz`
 
 source $(dirname $(realpath ${BASH_SOURCE[0]}))/../utils/pre-script.sh
 

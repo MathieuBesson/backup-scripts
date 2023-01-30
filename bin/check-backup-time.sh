@@ -4,6 +4,9 @@
 
 source $(dirname $(realpath ${BASH_SOURCE[0]}))/../utils/pre-script.sh
 
+#---
+## DEFINITION : Vérification du délai depuis le dernier backup
+#---
 check_backup_time(){
 
     fix_server_var_by_server_name $NAME_CURRENT_SERVER

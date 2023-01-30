@@ -95,6 +95,10 @@ check_serve_exist(){
     return $server_exist
 }
 
+#---
+## DEFINITION : Fixe la variable $SERVER (configuration du serveur) au serveur spécifié
+## PARAMETERS : $server_name : Nom du serveur spécifié
+#---
 fix_server_var_by_server_name(){
   local server_name="$1"
 
