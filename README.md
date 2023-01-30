@@ -14,7 +14,7 @@ Ainsi, il faut avoir [un accès par clé SSH](https://www.cyberciti.biz/faq/how-
 
 Dupliquer le fichier ./secrets/var.dev.sh et de le renommer en ./secrets/var.sh pour déterminer la configuration des serveurs à sauvegarder.
 
-Ensuite définirles informations suivantes :
+Ensuite définir les informations suivantes :
 
 #### Variables requises sur le serveur de backup (pour chaque $SERVER à sauvegarder) :
 
