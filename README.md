@@ -8,15 +8,17 @@ Avant de pouvoir utiliser les différents script (backup, restauration et vérif
 
 ### Configurer un accès par clé SSH (root) sur les serveurs à sauvegarder
 
-Ainsi, il est nécéssaire d'avoir [un accès par clé SSH](https://www.cyberciti.biz/faq/how-to-set-up-ssh-keys-on-linux-unix/) avec l'utilisateur root configuré sur la machine lançant les sauvegardes.
+Ainsi, il faut avoir [un accès par clé SSH](https://www.cyberciti.biz/faq/how-to-set-up-ssh-keys-on-linux-unix/) avec l'utilisateur root configuré sur la machine lançant les sauvegardes.
 
 ### Établir la configuration de backup des serveurs à sauvegarder
 
 Dupliquer le fichier ./secrets/var.dev.sh et de le renommer en ./secrets/var.sh pour déterminer la configuration des serveurs à sauvegarder.
 
-Il faut ensuite définir pour chaque serveur à sauvegarder les informations suivantes :
+Ensuite définirles informations suivantes :
 
--   `NAME` : Nom du serveur
+#### Variables requises sur le serveur de backup (pour chaque $SERVER à sauvegarder) :
+
+-   `NAME` : Nom du serveur (attention ce paramètre doit correspondre à la valeur de $NAME_CURRENT_SERVER sur le serveur)
 -   `IP` : Adresse ip du serveur
 -   `BACKUP_USER` : Utilisateur à utiliser pour le backup (root conseillé pour ne pas perdre les propriétaires des dossier et fichiers)
 -   `FOLDER_BACKUP_SOURCE` : Dossier à sauvegarder sur le serveur
@@ -26,6 +28,10 @@ Il faut ensuite définir pour chaque serveur à sauvegarder les informations sui
 -   `NUMBER_OF_DAYS_WITHOUT_WARNING` : Nombre de jours sans backup sans reçevoir des notifications
 
 Renseigner ensuite l'url d'un [webhook Discord](https://support.discord.com/hc/en-us/articles/228383668-Intro-to-Webhooks) permettant de notifier l'administrateur au cours d'un backup avec la variable `DISCORD_WEBHOOK_URL`
+
+#### Variable requise seulement sur le serveur à sauvegarder :
+
+-   `NAME_CURRENT_SERVER` : Nom du serveur à sauvegarder (nom de la machine, peux être égale à $HOST)
 
 ## Informations complémentaires
 
@@ -42,15 +48,15 @@ sudo ln -s {project-path}/bin/restore.sh /usr/bin/restore
 Les 3 scripts suivants sont maintenant utilisable :
 
 ```bash
-# Sauvegarde d'un serveur
+# Sauvegarde d'un serveur (à executer sur le serveur de backup)
 sudo backup
 # OU
-sudo backup pluton
+sudo backup ichigo
 
-# Restauration d'un serveur
-sudo restore pluton pluton pluton-2023-01-29-22-34-28_1675028068_.tar.gz
+# Restauration d'un serveur (à executer sur le serveur de backup)
+sudo restore ichigo ichigo ichigo-2023-01-29-22-34-28_1675028068_.tar.gz
 
-# Vérifiaction de la date de dernière mise à jour du serveur
+# Vérification de la date de dernière mise à jour du serveur (à executer sur le serveur à sauvegarder)
 sudo check-backup-time
 ```
 
