@@ -1,10 +1,10 @@
 # Outil de sauvegarde de serveur
 
-Ce projet à pour objectif de permettre de sauvegarder un ou plusieurs serveurs sur une machine dédié.
+Ce projet à pour objectif de permettre de sauvegarder un ou plusieurs serveurs sur une machine dédiée.
 
 ## Pré-requis
 
-Avant de pouvoir utiliser les différents script (backup, restauration et vérification de la date de dernier backup) il est nécéssaire de configurer les serveurs à sauvegarder.
+Avant de pouvoir utiliser les différents script (backup, restauration et vérification de la date de dernier backup) il est nécessaire de configurer les serveurs à sauvegarder.
 
 ### Configurer un accès par clé SSH (root) sur les serveurs à sauvegarder
 
@@ -18,14 +18,14 @@ Ensuite définirles informations suivantes :
 
 #### Variables requises sur le serveur de backup (pour chaque $SERVER à sauvegarder) :
 
--   `NAME` : Nom du serveur (attention ce paramètre doit correspondre à la valeur de $NAME_CURRENT_SERVER sur le serveur)
+-   `NAME` : Nom du serveur (Attention : ce paramètre doit correspondre à la valeur de $NAME_CURRENT_SERVER sur le serveur)
 -   `IP` : Adresse ip du serveur
 -   `BACKUP_USER` : Utilisateur à utiliser pour le backup (root conseillé pour ne pas perdre les propriétaires des dossier et fichiers)
 -   `FOLDER_BACKUP_SOURCE` : Dossier à sauvegarder sur le serveur
 -   `FOLDER_BACKUP_TARGET` : Dossier de destination des sauvegardes sur le serveur de backup (lançant la sauvegarde) pour le serveur courant
 -   `FOLDER_BACKUP_GLOBAL` : Dossier de sauvegarde parent (permettant de grouper les sauvegardes)
--   `FOLDER_BACKUP_PARAMETERS` : Dossier de parametrage
--   `NUMBER_OF_DAYS_WITHOUT_WARNING` : Nombre de jours sans backup sans reçevoir des notifications
+-   `FOLDER_BACKUP_PARAMETERS` : Dossier de paramétrage
+-   `NUMBER_OF_DAYS_WITHOUT_WARNING` : Nombre de jours sans backup sans recevoir des notifications
 
 Renseigner ensuite l'url d'un [webhook Discord](https://support.discord.com/hc/en-us/articles/228383668-Intro-to-Webhooks) permettant de notifier l'administrateur au cours d'un backup avec la variable `DISCORD_WEBHOOK_URL`
 
@@ -43,26 +43,26 @@ sudo ln -s {project-path}/bin/check-backup-time.sh /usr/bin/check-backup-time
 sudo ln -s {project-path}/bin/restore.sh /usr/bin/restore
 ```
 
-## Utiliser les scrips
+## Utiliser les scripts
 
-Les 3 scripts suivants sont maintenant utilisable :
+Les 3 scripts suivants sont maintenant utilisables :
 
 ```bash
-# Sauvegarde d'un serveur (à executer sur le serveur de backup)
+# Sauvegarde d'un serveur (à exécuter sur le serveur de backup)
 sudo backup
 # OU
 sudo backup ichigo
 
-# Restauration d'un serveur (à executer sur le serveur de backup)
+# Restauration d'un serveur (à exécuter sur le serveur de backup)
 sudo restore ichigo ichigo ichigo-2023-01-29-22-34-28_1675028068_.tar.gz
 
-# Vérification de la date de dernière mise à jour du serveur (à executer sur le serveur à sauvegarder)
+# Vérification de la date de dernière mise à jour du serveur (à exécuter sur le serveur à sauvegarder)
 sudo check-backup-time
 ```
 
 ## Configuration des crons
 
-Il peut être util d'executer les scripts de manière automatique à intervale régulier. Les taches planifiés ou cron job répondent à ce besoin.
+Il peut être utile d'exécuter les scripts de manière automatique à intervale régulier. Les taches planifiées ou cron job répondent à ce besoin.
 
 Vous pouvez les configurer sur le serveur de backup :
 
@@ -76,4 +76,4 @@ Et sur le serveur à sauvegarder :
 0 1 * * * root check-backup-time
 ```
 
-L'outil [Crontab Guru](https://crontab.guru/) peux permettre de configurer vos crons plus facilement.
+L'outil [Crontab Guru](https://crontab.guru/) peut permettre de configurer vos crons plus facilement.
