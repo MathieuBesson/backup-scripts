@@ -71,7 +71,7 @@ check_is_launcher_user(){
 check_server_name_param_is_known(){
     local server_name="$1"
 
-    if [[ $(check_serve_exist $server_name) == false ]] ; then
+    if ! check_serve_exist $server_name; then
         echo "Le serveur $server_name n'existe pas dans la configuration de var.sh"
         exit
     fi
@@ -93,4 +93,15 @@ check_serve_exist(){
     done
 
     return $server_exist
+}
+
+fix_server_var_by_server_name(){
+  local server_name="$1"
+
+  for KEY in "${!SERVERS[@]}"; do
+    eval "${SERVERS["$KEY"]}"
+    if [[ ${SERVER[NAME]} == $server_name ]]; then
+        break
+    fi
+  done
 }
