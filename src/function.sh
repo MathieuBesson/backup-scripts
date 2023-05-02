@@ -58,7 +58,7 @@ EOF
 check_is_launcher_user(){
   local user="$1"
 
-  if [[ $USER != $user ]]; then
+  if [[ $(whoami) != $user ]]; then
     echo "Ce script est à lancer avec l'utilisateur $user"
     exit
   fi
