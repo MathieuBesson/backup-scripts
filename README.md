@@ -31,7 +31,7 @@ Renseigner ensuite l'url d'un [webhook Discord](https://support.discord.com/hc/e
 
 #### Variable requise seulement sur le serveur à sauvegarder :
 
--   `NAME_CURRENT_SERVER` : Nom du serveur à sauvegarder (nom de la machine, peux être égale à $HOST)
+-   `NAME_CURRENT_SERVER` : Nom du serveur à sauvegarder (nom de la machine, peut être égale à $HOST)
 
 ## Informations complémentaires
 
