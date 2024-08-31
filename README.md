@@ -1,41 +1,43 @@
-# Outil de sauvegarde de serveur
+# Backup Server Tool
 
-Ce projet à pour objectif de permettre de sauvegarder un ou plusieurs serveurs sur une machine dédiée.
+This tool is designed to back up one or more servers to a dedicated machine.
 
-## Pré-requis
+## Prerequisites
 
-Avant de pouvoir utiliser les différents script (backup, restauration et vérification de la date de dernier backup) il est nécessaire de configurer les serveurs à sauvegarder.
+- At least two Linux machines
 
-### Configurer un accès par clé SSH (root) sur les serveurs à sauvegarder
+Before using the various scripts (backup, restore, and checking the date of the last backup), you need to configure the servers to be backed up.
 
-Ainsi, il faut avoir [un accès par clé SSH](https://www.cyberciti.biz/faq/how-to-set-up-ssh-keys-on-linux-unix/) avec l'utilisateur root configuré sur la machine lançant les sauvegardes.
+### Set Up SSH Key Access (root) on the Servers to Be Backed Up
 
-### Établir la configuration de backup des serveurs à sauvegarder
+You must have [SSH key access](https://www.cyberciti.biz/faq/how-to-set-up-ssh-keys-on-linux-unix/) configured with the root user on the machine initiating the backups.
 
-Dupliquer le fichier ./secrets/var.dev.sh et de le renommer en ./secrets/var.sh pour déterminer la configuration des serveurs à sauvegarder.
+### Configure the Backup Settings for the Servers
 
-Ensuite définir les informations suivantes :
+Duplicate the `./secrets/var.dev.sh` file and rename it to `./secrets/var.sh` to define the backup configuration for the servers.
 
-#### Variables requises sur le serveur de backup (pour chaque $SERVER à sauvegarder) :
+Next, set the following information:
 
--   `NAME` : Nom du serveur (Attention : ce paramètre doit correspondre à la valeur de $NAME_CURRENT_SERVER sur le serveur)
--   `IP` : Adresse ip du serveur
--   `BACKUP_USER` : Utilisateur à utiliser pour le backup (root conseillé pour ne pas perdre les propriétaires des dossier et fichiers)
--   `FOLDER_BACKUP_SOURCE` : Dossier à sauvegarder sur le serveur
--   `FOLDER_BACKUP_TARGET` : Dossier de destination des sauvegardes sur le serveur de backup (lançant la sauvegarde) pour le serveur courant
--   `FOLDER_BACKUP_GLOBAL` : Dossier de sauvegarde parent (permettant de grouper les sauvegardes)
--   `FOLDER_BACKUP_PARAMETERS` : Dossier de paramétrage
--   `NUMBER_OF_DAYS_WITHOUT_WARNING` : Nombre de jours sans backup sans recevoir des notifications
+#### Required Variables on the Backup Server (for each $SERVER to be backed up):
 
-Renseigner ensuite l'url d'un [webhook Discord](https://support.discord.com/hc/en-us/articles/228383668-Intro-to-Webhooks) permettant de notifier l'administrateur au cours d'un backup avec la variable `DISCORD_WEBHOOK_URL`
+- `NAME`: Server name (Note: this parameter must match the $NAME_CURRENT_SERVER value on the server)
+- `IP`: Server's IP address
+- `BACKUP_USER`: User to use for the backup (root is recommended to avoid losing file and folder ownership)
+- `FOLDER_BACKUP_SOURCE`: Folder to be backed up on the server
+- `FOLDER_BACKUP_TARGET`: Destination folder for backups on the backup server (initiating the backup) for the current server
+- `FOLDER_BACKUP_GLOBAL`: Parent backup folder (to group backups)
+- `FOLDER_BACKUP_PARAMETERS`: Configuration folder
+- `NUMBER_OF_DAYS_WITHOUT_WARNING`: Number of days without a backup before receiving notifications
 
-#### Variable requise seulement sur le serveur à sauvegarder :
+Then, provide the URL of a [Discord webhook](https://support.discord.com/hc/en-us/articles/228383668-Intro-to-Webhooks) to notify the administrator during a backup with the variable `DISCORD_WEBHOOK_URL`.
 
--   `NAME_CURRENT_SERVER` : Nom du serveur à sauvegarder (nom de la machine, peut être égale à $HOST)
+#### Required Variable Only on the Server to Be Backed Up:
 
-## Informations complémentaires
+- `NAME_CURRENT_SERVER`: Name of the server to be backed up (the machine's name, which can be equal to $HOST)
 
-Il est possible de lancer les scripts plus simplement qu'en précisant le chemin d'accès du script. Il faut pour cela, créer des liens symboliques pour les scripts vers /usr/bin :
+## Additional Information
+
+You can run the scripts more easily by creating symbolic links for the scripts in `/usr/bin`:
 
 ```bash
 sudo ln -s {project-path}/bin/backup.sh /usr/bin/backup
@@ -43,37 +45,41 @@ sudo ln -s {project-path}/bin/check-backup-time.sh /usr/bin/check-backup-time
 sudo ln -s {project-path}/bin/restore.sh /usr/bin/restore
 ```
 
-## Utiliser les scripts
+## Using the Scripts
 
-Les 3 scripts suivants sont maintenant utilisables :
+The following 3 scripts are now available:
 
 ```bash
-# Sauvegarde d'un serveur (à exécuter sur le serveur de backup)
+# Backup a server (run on the backup server)
 sudo backup
-# OU
+# OR
 sudo backup ichigo
 
-# Restauration d'un serveur (à exécuter sur le serveur de backup)
+# Restore a server (run on the backup server)
 sudo restore ichigo ichigo ichigo-2023-01-29-22-34-28_1675028068_.tar.gz
 
-# Vérification de la date de dernière mise à jour du serveur (à exécuter sur le serveur à sauvegarder)
+# Check the last backup date of the server (run on the server to be backed up)
 sudo check-backup-time
 ```
 
-## Configuration des crons
+## Configuring Cron Jobs
 
-Il peut être utile d'exécuter les scripts de manière automatique à intervale régulier. Les taches planifiées ou cron job répondent à ce besoin.
+It may be useful to run the scripts automatically at regular intervals. Scheduled tasks or cron jobs serve this purpose.
 
-Vous pouvez les configurer sur le serveur de backup :
+You can configure them on the backup server:
 
 ```conf
 0 1 * * * root backup
 ```
 
-Et sur le serveur à sauvegarder :
+And on the server to be backed up:
 
 ```conf
 0 1 * * * root check-backup-time
 ```
 
-L'outil [Crontab Guru](https://crontab.guru/) peut permettre de configurer vos crons plus facilement.
+The tool [Crontab Guru](https://crontab.guru/) can help you configure your cron jobs more easily.
+
+## License
+
+This project is licensed under the GPL License. See the [LICENSE](./LICENSE) file for more details.
