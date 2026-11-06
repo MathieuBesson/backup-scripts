@@ -102,7 +102,7 @@ CI légère : `shellcheck` sur les scripts. Les anciens scripts restent consulta
 
 ## Migration proposée
 
-1. **Mesurer** ce qui est vraiment à sauvegarder (commandes ci-dessous).
+1. **Mesurer** ce qui est vraiment à sauvegarder : `sudo ./scripts/inventory.sh` (voir ci-dessous).
 2. Créer le bucket R2 et une clé d'accès limitée à ce bucket ; créer le contrôle Healthchecks.
 3. Écrire `dump-databases.sh` et le profil resticprofile ; `restic init` ; noter le mot de passe hors du serveur.
 4. Premier backup à la main, puis activer le timer.
@@ -112,14 +112,22 @@ CI légère : `shellcheck` sur les scripts. Les anciens scripts restent consulta
 
 ## Mesurer avant de choisir
 
-À lancer sur `ichigo` (lecture seule) :
+Le script `scripts/inventory.sh` fait l'inventaire, **en lecture seule**, de ce qui serait à sauvegarder sur le serveur, et en estime le volume :
 
 ```bash
-docker ps --format '{{.Names}}\t{{.Image}}'                  # conteneurs : Bitwarden officiel ou Vaultwarden ? quels Postgres ?
-docker system df -v | sed -n '/Local Volumes/,/Build cache/p' # taille des volumes Docker
-docker inspect -f '{{.Name}} {{range .Mounts}}{{.Source}} {{end}}' $(docker ps -q)  # dossiers montés
-sudo du -sh /etc /root /home /opt /srv /var/www /etc/letsencrypt 2>/dev/null
+sudo ./scripts/inventory.sh | tee inventaire.txt      # --no-db : sans interroger PostgreSQL
 ```
+
+Il affiche :
+- les disques et les dossiers système (`/etc`, `/root`, `/home`, `/opt`, `/srv`, `/var/www`, `/usr/local`, crontabs), avec le détail des plus gros sous-dossiers pour repérer ce qui se réinstalle ;
+- la configuration Apache, les sites actifs et leurs `DocumentRoot` ;
+- chaque conteneur Docker (y compris arrêté) : son dossier compose, ses volumes et montages. Les dossiers de données brutes des bases sont **exclus au profit d'un dump**, et Vaultwarden / Bitwarden officiel sont repérés avec la bonne méthode de sauvegarde ;
+- la taille de chaque base PostgreSQL (une requête `SELECT` de lecture), dans Docker ou sur la machine ;
+- les dépôts git, avec leur remote (identifiants masqués), le volume de leurs fichiers non versionnés (`.env`, `data/`…) et une alerte en cas de modifications non commitées ;
+- ce qui est à exclure (`/var/lib/docker`, journaux, caches, `node_modules`…) ;
+- une **synthèse** : la liste des chemins retenus et exclus, le total sans doublon, et une estimation compressée.
+
+Le rapport ne contient aucun secret (pas de variables d'environnement, URL git masquées), mais des noms de chemins et de conteneurs : le relire avant de le partager.
 
 ## Questions encore ouvertes
 

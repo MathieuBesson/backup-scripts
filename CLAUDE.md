@@ -23,6 +23,7 @@ Ce fichier est le point d'entrée pour tout développement, humain ou IA.
 ## Commandes
 
 ```bash
+sudo ./scripts/inventory.sh  # sur le serveur : inventaire en lecture seule de ce qu'il faut sauvegarder, et volume
 make install       # active les hooks git
 make lint          # shellcheck sur les scripts (l'existant échoue encore : voir problemes-connus.md)
 make claude-skills # resynchronise les skills tiers épinglés
