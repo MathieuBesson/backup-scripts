@@ -10,8 +10,11 @@ IFS=$'\n\t'
 
 readonly SEARCH_ROOTS=(/opt /srv /var/www /home /root)
 readonly SYSTEM_PATHS=(/etc /root /home /opt /srv /var/www /usr/local /var/spool/cron)
-# Motifs exclus de tout le calcul : régénérables, sans valeur de sauvegarde
-readonly EXCLUDE_PATTERNS=(node_modules .cache __pycache__ .venv .npm .mypy_cache .pytest_cache)
+# Motifs exclus de tout le calcul : caches d'outils, recréés automatiquement à l'usage.
+# Les dépendances installées (node_modules, vendor, .venv…) et les .env sont GARDÉS :
+# la restauration doit remettre les applications en marche sans réinstallation.
+readonly EXCLUDE_PATTERNS=(.npm __pycache__ .mypy_cache .pytest_cache .ruff_cache)
+readonly DEPENDENCY_PATTERNS=(node_modules vendor .venv venv)
 readonly DB_TIMEOUT=20
 
 declare -a INCLUDES=()
@@ -101,6 +104,15 @@ add_exclude() {
 #---
 print_size_line() {
   printf '  %10s  %-50s %s\n' "$(human "$(size_of "$1")")" "$1" "${2:-}"
+}
+
+#---
+## Joint des mots avec des espaces (IFS vaut retour à la ligne + tabulation dans ce script)
+## PARAMETERS : $@ : mots
+#---
+join_words() {
+  local IFS=' '
+  echo "$*"
 }
 
 #---
@@ -310,11 +322,11 @@ inspect_postgres_host() {
 }
 
 #---
-## Dépôts git : ce qui est déjà sur GitHub n'a besoin que de ses fichiers non versionnés (.env, data/…)
+## Dépôts git : dépôts trouvés, fichiers non versionnés (gardés : .env, data/, dépendances) et modifications non commitées
 #---
 inspect_git_repos() {
-  section "Dépôts git (le code versionné est déjà sauvegardé par GitHub)"
-  local gitdir repo remote untracked_bytes dirty
+  section "Dépôts git (gardés en entier pour une restauration automatique)"
+  local gitdir repo remote untracked_bytes dirty env_files
   local found=0
   while IFS= read -r -d '' gitdir; do
     found=1
@@ -322,11 +334,12 @@ inspect_git_repos() {
     remote=$(git -c safe.directory='*' -C "$repo" remote get-url origin 2>/dev/null || echo "aucun remote")
     dirty=$(git -c safe.directory='*' -C "$repo" status --porcelain 2>/dev/null | grep -vc '^??' || true)
     untracked_bytes=$(git -c safe.directory='*' -C "$repo" ls-files -z --others 2>/dev/null \
-      | grep -zvE '(^|/)(node_modules|\.venv|__pycache__|\.cache)/' \
       | (cd "$repo" && du -cb --files0-from=- 2>/dev/null) | tail -1 | cut -f1 || true)
+    env_files=$(find "$repo" -maxdepth 3 -name '.env*' -type f -not -path '*/node_modules/*' -printf '%P ' 2>/dev/null || true)
     echo "  ● $repo"
     echo "      remote : $(mask_url "$remote")"
-    echo "      fichiers non versionnés (.env, data/, …) : $(human "${untracked_bytes:-0}")"
+    echo "      fichiers non versionnés (inclus : .env, data/, dépendances…) : $(human "${untracked_bytes:-0}")"
+    [[ -n "$env_files" ]] && echo "      fichiers d'environnement (inclus) : $env_files"
     if (( dirty > 0 )); then
       echo "      ⚠ $dirty fichier(s) modifié(s) non commité(s) : à pousser, ou à sauvegarder"
     fi
@@ -335,24 +348,40 @@ inspect_git_repos() {
 }
 
 #---
-## Dossiers volumineux à exclure explicitement
+## Taille cumulée des dossiers dont le nom correspond à l'un des motifs, sous SEARCH_ROOTS
+## PARAMETERS : $@ : noms de dossiers (ex. node_modules vendor)
+#---
+dirs_size() {
+  local find_args=()
+  local name
+  for name in "$@"; do find_args+=(-name "$name" -o); done
+  unset 'find_args[-1]'
+  local out
+  out=$(find "${SEARCH_ROOTS[@]}" -type d \( "${find_args[@]}" \) -prune -print0 2>/dev/null \
+        | du -cb --files0-from=- 2>/dev/null | tail -1 | cut -f1 || true)
+  echo "${out:-0}"
+}
+
+#---
+## Ce qui est exclu (se recrée seul) et ce qui est gardé pour une restauration automatique
 #---
 inspect_heavy_excluded() {
-  section "À exclure (volumineux, sans valeur de sauvegarde)"
+  local roots
+  roots=$(join_words "${SEARCH_ROOTS[@]}")
+
+  section "Gardé pour une restauration sans réinstallation"
+  printf '  %10s  %s\n' "$(human "$(dirs_size "${DEPENDENCY_PATTERNS[@]}")")" \
+    "dépendances installées ($(join_words "${DEPENDENCY_PATTERNS[@]}")) dans $roots"
+  echo "  Déjà comptées dans le total. Restic les déduplique : elles ne pèsent qu'au premier backup et quand elles changent."
+
+  section "Exclu (se recrée seul, ou retéléchargé à la restauration)"
   local path
   for path in /var/lib/docker /var/log /var/cache /swapfile /swap.img; do
     [[ -e "$path" ]] && print_size_line "$path"
   done
-  local pattern_args=()
-  local pattern
-  for pattern in "${EXCLUDE_PATTERNS[@]}"; do pattern_args+=(-name "$pattern" -o); done
-  unset 'pattern_args[-1]'
-  local total
-  total=$(find "${SEARCH_ROOTS[@]}" -type d \( "${pattern_args[@]}" \) -prune -print0 2>/dev/null \
-          | du -cb --files0-from=- 2>/dev/null | tail -1 | cut -f1 || true)
-  local roots
-  roots=$(printf '%s ' "${SEARCH_ROOTS[@]}")
-  printf '  %10s  %s\n' "$(human "${total:-0}")" "node_modules, .venv, caches… dans $roots"
+  printf '  %10s  %s\n' "$(human "$(dirs_size "${EXCLUDE_PATTERNS[@]}")")" "caches d'outils ($(join_words "${EXCLUDE_PATTERNS[@]}"))"
+  echo "  /var/lib/docker : images et conteneurs, retéléchargés par docker compose pull (les volumes de données, eux, sont inclus)."
+  NOTES+=("Images Docker : pour une restauration automatique, chaque image doit rester téléchargeable (versions épinglées, pas « latest ») ; une image construite localement doit être poussée sur un registre ou reconstructible")
 }
 
 #---
@@ -396,7 +425,8 @@ print_summary() {
     for note in "${NOTES[@]}"; do echo "  • $note"; done
   fi
   echo
-  echo "Le total inclut tout /opt, /home, /usr/local… : retirer ce qui se réinstalle (voir « Détail des plus gros"
+  echo "Pour une restauration automatique, tout ce qui est listé est gardé (dont .env et dépendances installées)."
+  echo "Ne retirer que ce qui est vraiment inutile (anciens projets, outils abandonnés : voir « Détail des plus gros"
   echo "sous-dossiers »), ajouter ce qui manque, puis reporter la liste dans le profil de backup."
 }
 
