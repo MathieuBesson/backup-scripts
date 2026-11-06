@@ -1,0 +1,6 @@
+#!/bin/sh
+# Refuse les commits signés « Co-Authored-By » par un assistant IA (règle du projet)
+if grep -qiE '^Co-Authored-By:.*(Claude|anthropic)' "$1"; then
+  echo "❌ Le message de commit contient un trailer Co-Authored-By d'un assistant IA : supprimez-le." >&2
+  exit 1
+fi
