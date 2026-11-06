@@ -2,6 +2,8 @@
 
 This tool is designed to back up one or more servers to a dedicated machine.
 
+> Detailed documentation (in French), known issues and the proposed replacement: [docs/README.md](./docs/README.md).
+
 ## Prerequisites
 
 - At least two Linux machines
@@ -56,7 +58,7 @@ sudo backup
 sudo backup ichigo
 
 # Restore a server (run on the backup server)
-sudo restore ichigo ichigo ichigo-2023-01-29-22-34-28_1675028068_.tar.gz
+sudo restore ichigo ichigo-2023-01-29-22-34-28_1675028068_.tar.gz
 
 # Check the last backup date of the server (run on the server to be backed up)
 sudo check-backup-time
