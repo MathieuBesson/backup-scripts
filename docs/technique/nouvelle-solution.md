@@ -1,133 +1,132 @@
-# Proposition : remplacer les scripts par une sauvegarde « push » chiffrée et dédupliquée
+# Proposition : sauvegarde « push » chiffrée, sans budget
 
-**Statut : proposition, rien n'est encore implémenté.** Les choix à valider sont listés à la fin.
+**Statut : proposition, rien n'est encore implémenté.** Les points encore ouverts sont listés à la fin.
+
+## Contexte (décisions prises)
+
+| Point | Réponse |
+|---|---|
+| Serveurs | **Un seul** : `ichigo` |
+| Budget | **Aucun** : pas de serveur de backup, pas d'abonnement de stockage |
+| Ce qui tourne | Docker ; PostgreSQL ; Apache (configuration) ; Bitwarden en Docker ; documentation MkDocs ; bientôt Templify |
+| Volume | ≈ 20 Go au total sur le serveur (à mesurer : voir plus bas, la partie utile est probablement bien plus petite) |
 
 ## Ce qu'on veut
 
 | Besoin | Aujourd'hui | Cible |
 |---|---|---|
 | Ne pas dépendre du PC | Le PC doit être allumé à 1 h | Le serveur se sauvegarde **lui-même**, PC éteint |
-| Bande passante | Tout le disque transite à chaque fois, vers le PC | Seuls les blocs modifiés partent, du serveur vers un stockage distant ; le PC ne fait rien |
-| Place disque | ~1 archive complète par jour | Déduplication : un backup quotidien coûte la taille de ce qui a changé |
-| Sécurité | Archives en clair, root SSH du PC vers les serveurs | Chiffrement côté serveur ; le stockage ne voit que des données chiffrées ; plus d'accès root entrant |
-| Cohérence des bases | Copie à chaud des fichiers | Dump des bases avant chaque backup |
-| Alerte fiable | Le serveur s'alerte lui-même (muet s'il est en panne) | Alerte « dead man's switch » externe : on est prévenu si **aucun** backup n'arrive |
-| Restauration | Écrasement à chaud du `/` | Restauration d'un fichier, d'un dossier ou de tout, avec simulation, sur la machine de son choix |
-| Vérification | Aucune | Contrôle d'intégrité automatique + test de restauration régulier |
+| Bande passante du PC | Tout le disque transite à chaque fois vers le PC | Le PC ne reçoit rien (ou seulement les nouveautés, s'il garde une copie) |
+| Place | ~1 archive complète par jour | Déduplication : un backup quotidien coûte la taille de ce qui a changé |
+| Sécurité | Archives en clair, root SSH du PC vers le serveur | Chiffrement sur le serveur ; le stockage ne voit que des données chiffrées ; plus d'accès root entrant |
+| Bases de données | Copie à chaud des fichiers PostgreSQL | Dump avant chaque backup |
+| Alerte fiable | Le serveur s'alerte lui-même (muet s'il est en panne) | Alerte externe si **aucun** backup n'arrive |
+| Restauration | Écrasement à chaud du `/` | Restauration d'un fichier, d'un dossier ou de tout, sur la machine de son choix |
+| Coût | Électricité et disque du PC | **0 €** |
 
-## Principe
+## La clé : ne sauvegarder que ce qui ne se recrée pas
 
-```
- Serveur (ichigo)                                         Stockage distant (hors de chez soi)
- ────────────────                                         ──────────────────────────────────
- timer systemd (chaque nuit)                              ex. Hetzner Storage Box (borg natif)
-   └─ borgmatic                                           dépôt Borg chiffré, dédupliqué
-        1. dump PostgreSQL / MySQL / SQLite ─┐
-        2. borg create (fichiers + dumps) ───┴── SSH ───▶ seuls les blocs nouveaux sont envoyés
-        3. borg prune (rétention)
-        4. borg check (intégrité, partiel)
-        5. ping début / succès / échec ─────────────────▶ healthchecks.io ── alerte si rien reçu
-                                                          └─ notification Discord
+Les 20 Go du serveur sont surtout du système et des images Docker, qui se réinstallent. Ce qui est **irremplaçable** est petit :
 
- PC : rien à faire. Sert seulement à restaurer, ou à garder une copie supplémentaire s'il le souhaite.
-```
-
-C'est le serveur qui **pousse** ses données ; il n'a besoin que d'un accès sortant vers le stockage. Le stockage ne détient jamais la clé de chiffrement.
-
-## Outil recommandé : BorgBackup + borgmatic
-
-[BorgBackup](https://www.borgbackup.org/) fait la déduplication, la compression et le chiffrement. [borgmatic](https://torsion.org/borgmatic/) l'enveloppe avec un fichier YAML par serveur et apporte, sans code à écrire :
-- les sources, exclusions et rétention (`keep_daily`, `keep_weekly`, `keep_monthly`…) ;
-- les **dumps de bases** PostgreSQL, MySQL/MariaDB, SQLite, MongoDB, streamés dans l'archive puis restaurables par `borgmatic restore` ;
-- les contrôles d'intégrité planifiés (`checks`, avec fréquence) ;
-- la supervision : hook [Healthchecks](https://healthchecks.io/) natif, et hook Apprise (présent depuis borgmatic 1.8.4) qui sait poster sur Discord ;
-- des unités systemd (service + timer) fournies par le projet.
-
-Résultat : les ~250 lignes de bash actuelles sont remplacées par un fichier de configuration d'environ 40 lignes par serveur, avec un outil maintenu et largement utilisé.
-
-### Alternatives sérieuses
-
-| Outil | Pour | Contre | Quand le préférer |
-|---|---|---|---|
-| **Borg + borgmatic** (recommandé) | Configuration YAML complète, dumps de bases intégrés, supervision intégrée, Storage Box compatible nativement | Le serveur distant doit parler Borg (ou SSH + borg installé) | Cas général, un ou quelques serveurs Linux |
-| **restic** (+ [resticprofile](https://creativeprojects.github.io/resticprofile/) ou [Backrest](https://github.com/garethgeorge/backrest)) | Binaire unique, nombreux stockages (S3, Backblaze B2, SFTP, rest-server), version 0.19 en 2026 | Dumps de bases et notifications à scripter soi-même (ou via resticprofile) | Si on veut un stockage objet type S3/B2 |
-| **Kopia** | Interface graphique, S3/B2/SFTP, politiques fines | Moins répandu en serveur sans interface | Si une UI compte |
-| Snapshots de l'hébergeur (VPS) | Restauration complète en un clic | Lié au fournisseur, souvent payant, pas de restauration fine, même datacenter | En **complément**, pas à la place |
-| rsnapshot / rsync + liens physiques | Proche de l'existant | Pas de chiffrement ni de vraie déduplication ; reste un modèle pull | À éviter |
-
-### Où stocker
-
-| Stockage | Prix indicatif | Remarque |
+| Élément | À sauvegarder | Taille probable |
 |---|---|---|
-| **Hetzner Storage Box BX11** (1 To) | ≈ 3,20 € HT/mois, sans engagement (à revérifier sur la page Hetzner) | Borg et restic supportés (SSH/SFTP), snapshots côté Storage Box, en Allemagne/Finlande |
-| Backblaze B2 / autre S3 | Au Go stocké | Pour restic ou Kopia ; prévoir les frais de téléchargement à la restauration |
-| Un 2ᵉ serveur / NAS à soi | Matériel | Possible comme 2ᵉ dépôt, mais on retrouve la dépendance « machine allumée » |
+| PostgreSQL | **Dump** (`pg_dumpall`) avant chaque backup, pas les fichiers bruts | Quelques Mo à quelques centaines de Mo |
+| Bitwarden | Son dossier de données + sa base (méthode selon Bitwarden officiel ou Vaultwarden, voir questions) | Quelques Mo |
+| Apache | `/etc/apache2` (ou `/etc/httpd`), certificats `/etc/letsencrypt` | < 10 Mo |
+| Docker | Fichiers `docker-compose.yml`, `.env`, **volumes de données** nommés ou montés | Variable |
+| MkDocs | Rien si les sources sont dans git (`MathieuBesson/mkdocs`) ; sinon le dossier source, pas le site généré | ~0 |
+| Templify | `.env` et `data/` (le code est dans git) | Petit |
+| Système | `/etc`, `/root`, `/home`, crontabs, liste des paquets (`dpkg --get-selections`) | < 100 Mo |
 
-Règle 3-2-1 visée : les données sur le serveur, une copie chiffrée sur la Storage Box, et une troisième copie au choix (snapshots de l'hébergeur, ou 2ᵉ dépôt borgmatic, ou copie occasionnelle du dépôt sur le PC).
+Exclus : images et couches Docker (`/var/lib/docker/overlay2`, `image`), caches, journaux, `node_modules`, swap, sites générés.
 
-## Ce qu'on sauvegarde
+Avec la compression et la déduplication, la sauvegarde complète tient très probablement sous **2 à 3 Go**, et chaque nuit n'ajoute que quelques Mo. **Cela rentre dans un stockage gratuit.**
 
-Plutôt que tout `/`, on sauvegarde **ce qui ne se réinstalle pas** :
-- `/etc`, `/root`, `/home`, `/opt`, `/srv`, `/var/www`, `/usr/local` ;
-- les données des applications (`/var/lib/<appli>`, volumes Docker) ;
-- les **dumps** des bases (pas les fichiers bruts des bases) ;
-- la liste des paquets installés (`dpkg --get-selections`), générée avant chaque backup.
+En cas de perte du serveur : installer un système propre + Docker, restaurer `/etc` choisis, les compose et les volumes, réimporter les dumps. Plus fiable qu'écraser un `/` complet.
 
-On exclut caches, journaux volumineux, `/var/lib/docker/overlay2`, swap, `node_modules`, etc.
+## Outil recommandé : restic + resticprofile
 
-En cas de perte du serveur : réinstallation d'un système propre, puis restauration de la configuration et des données. C'est plus fiable que d'écraser un `/` complet, et plus rapide si la configuration du serveur est un jour décrite par Ansible.
+Sans budget, le stockage sera un **stockage objet gratuit compatible S3** (voir ci-dessous). Borg ne sait pas écrire directement dessus ; **restic** si.
+
+- [restic](https://restic.net/) : chiffrement, déduplication, compression, un seul binaire, version 0.19 en 2026, nombreux stockages (S3, B2, SFTP, dossier local, rclone).
+- [resticprofile](https://creativeprojects.github.io/resticprofile/) : fichier de configuration (TOML/YAML) qui décrit sources, exclusions, rétention, **commandes à lancer avant** (les dumps), **appels HTTP après succès ou échec** (Healthchecks, Discord), et génère le **timer systemd**.
+
+Résultat : les ~250 lignes de bash actuelles sont remplacées par un profil d'une cinquantaine de lignes et un petit script de dumps.
+
+> borgmatic reste un excellent choix si un jour un stockage Borg payant (Hetzner Storage Box, ~3,20 € HT/mois pour 1 To) devient acceptable : la structure de cette proposition ne change pas.
+
+## Où stocker gratuitement
+
+| Stockage | Gratuit | Remarque |
+|---|---|---|
+| **Cloudflare R2** (recommandé) | 10 Go/mois de stockage, sortie (téléchargement) gratuite, 1 M d'écritures et 10 M de lectures par mois ; offre permanente | Compatible S3, donc restic directement. L'activation demande d'enregistrer un moyen de paiement (à vérifier) ; au-delà de 10 Go, ≈ 0,015 $/Go/mois |
+| Backblaze B2 | 10 premiers Go (selon la plupart des sources, à confirmer sur la page officielle) | Compatible S3 et backend natif restic ; téléchargements gratuits jusqu'à 3× le volume stocké |
+| Google Drive / OneDrive via rclone | 15 Go / 5 Go avec le compte perso | Fonctionne (`restic -r rclone:…`) mais plus lent et quotas d'API ; solution de secours |
+| Le PC | Disque existant | En **2ᵉ copie** seulement, voir ci-dessous |
+
+### Règle 3-2-1 sans payer
+
+1. **Les données** sur `ichigo`.
+2. **Copie hors site, toujours à jour** : dépôt restic chiffré sur Cloudflare R2, alimenté chaque nuit par le serveur.
+3. **Copie locale, quand le PC est allumé** (optionnelle) : le PC récupère seulement les nouveaux morceaux depuis R2 (`rclone sync` ou `restic copy`), par un timer qui rattrape le retard au démarrage. Quelques Mo par jour, plus de dépendance : si le PC reste éteint une semaine, rien n'est perdu.
 
 ## Sécurité
 
-- La **phrase de passe Borg** (mode `repokey-blake2`) et une **export de la clé** (`borg key export`) sont gardées hors du serveur : gestionnaire de mots de passe + copie papier. Sans elles, les sauvegardes sont illisibles.
-- Clé SSH dédiée au backup sur le serveur, autorisée uniquement sur la Storage Box. Plus aucun accès root entrant venant du PC.
-- Protection contre un serveur compromis qui effacerait ses sauvegardes : snapshots de la Storage Box, ou dépôt en mode *append-only* si le stockage le permet (à vérifier pour la Storage Box).
-- Fichier de configuration lisible par root seulement (`chmod 600`), secrets dans un fichier séparé chargé par borgmatic.
+- **Mot de passe restic** : sans lui, les sauvegardes sont illisibles. Le garder **hors de Bitwarden aussi** (copie papier ou second gestionnaire), sinon il est perdu en même temps que le serveur qui héberge Bitwarden.
+- Clés R2 limitées au seul bucket de backup ; fichier de configuration et secrets en `chmod 600`, root seulement.
+- Protection contre un serveur compromis qui effacerait ses sauvegardes : la copie sur le PC sert de copie hors ligne ; à étudier, les règles de verrouillage d'objets de R2.
+- Plus aucun accès SSH root depuis le PC ; le workflow de déploiement par `git pull` disparaît.
 
 ## Supervision
 
-- **Healthchecks.io** (gratuit jusqu'à 20 contrôles) : borgmatic envoie « début », « succès » ou « échec ». Si aucun signal n'arrive dans le délai prévu (serveur éteint, timer cassé…), Healthchecks alerte par e-mail ou Discord. Cela corrige le défaut B6 de la solution actuelle.
-- **Discord** : notification d'échec (et éventuellement de succès) via Apprise, en gardant le webhook actuel.
-- Contrôle d'intégrité `borg check` hebdomadaire (dépôt) et mensuel avec relecture des données (`--verify-data` sur un échantillon).
-- **Test de restauration** tous les trimestres : restaurer un dossier et un dump dans un dossier temporaire, vérifier, documenter.
+- **Healthchecks.io** (gratuit jusqu'à 20 contrôles) : resticprofile signale début, succès ou échec. Si rien n'arrive dans le délai (serveur éteint, timer cassé…), Healthchecks alerte par e-mail ou Discord. Corrige le défaut B6 de l'existant.
+- **Discord** : le webhook actuel, appelé en cas d'échec (et éventuellement de succès).
+- `restic check` chaque semaine, `restic check --read-data-subset=10%` chaque mois (attention aux quotas de lecture si le volume grossit).
+- **Test de restauration** tous les trimestres : un dump PostgreSQL restauré dans un conteneur jetable, un dossier Bitwarden, une config Apache.
 
 ## Ce que devient ce dépôt
 
-Le dépôt ne contient plus de logique de backup, mais :
-
 ```
-borgmatic/
-  ichigo.yaml            # configuration borgmatic du serveur (sans secret)
-  common.yaml            # options partagées (rétention, checks, supervision)
-systemd/                 # éventuels ajustements du timer
+resticprofile/
+  profiles.yaml          # profil d'ichigo : sources, exclusions, rétention, hooks, planification (sans secret)
 scripts/
-  install.sh             # installe borg/borgmatic, la config, le timer, la clé SSH (idempotent)
-  restore-test.sh        # test de restauration guidé
+  dump-databases.sh      # dumps PostgreSQL (docker exec … pg_dumpall), Bitwarden, liste des paquets
+  install.sh             # installe restic/resticprofile, la config, le timer (idempotent)
+  restore-test.sh        # test de restauration guidé, dans un dossier temporaire
+  pc-sync.sh             # optionnel : copie du dépôt R2 sur le PC
 docs/
-  exploitation.md        # installer un serveur, restaurer, changer de stockage, en cas de sinistre
+  exploitation.md        # installer, restaurer, changer de stockage, en cas de sinistre
 ```
 
-Avec une CI légère : `shellcheck` sur les scripts et `borgmatic config validate` sur les YAML. Le déploiement par `git pull` via SSH disparaît : la configuration est installée par `scripts/install.sh` (ou un playbook Ansible, comme sur templify).
-
-Les anciens scripts restent consultables dans l'historique git.
+CI légère : `shellcheck` sur les scripts. Les anciens scripts restent consultables dans l'historique git.
 
 ## Migration proposée
 
-1. **Décider** : outil, stockage, liste des serveurs et des données (questions ci-dessous).
-2. Créer la Storage Box, la clé SSH du serveur, initialiser le dépôt (`borg init --encryption=repokey-blake2`), exporter la clé.
-3. Écrire la configuration borgmatic d'`ichigo`, la valider, lancer un premier backup à la main.
-4. Activer le timer systemd et Healthchecks ; vérifier l'alerte en coupant volontairement un backup.
-5. Faire un **test de restauration** complet dans une VM ou un dossier temporaire.
-6. Laisser l'ancien système et le nouveau tourner en parallèle deux semaines.
-7. Retirer les crons, les scripts bash, l'accès root SSH du PC et le workflow de déploiement ; garder une dernière archive `.tar.gz` le temps de la transition.
+1. **Mesurer** ce qui est vraiment à sauvegarder (commandes ci-dessous).
+2. Créer le bucket R2 et une clé d'accès limitée à ce bucket ; créer le contrôle Healthchecks.
+3. Écrire `dump-databases.sh` et le profil resticprofile ; `restic init` ; noter le mot de passe hors du serveur.
+4. Premier backup à la main, puis activer le timer.
+5. **Test de restauration** complet (dump PostgreSQL dans un conteneur jetable, Bitwarden, Apache).
+6. Faire tourner l'ancien et le nouveau en parallèle deux semaines ; vérifier l'alerte en coupant volontairement un backup.
+7. Retirer les crons, les anciens scripts, l'accès root SSH du PC et le workflow de déploiement.
 
-## Questions à trancher
+## Mesurer avant de choisir
 
-1. Combien de serveurs, et chez quel hébergeur ? (Cela décide si les snapshots de l'hébergeur servent de 3ᵉ copie.)
-2. Volume de données à sauvegarder (ordre de grandeur) ?
-3. Qu'est-ce qui tourne sur `ichigo` : Docker, quelles bases de données ?
-4. Budget accepté pour un stockage externe (≈ 3 à 5 €/mois) ?
-5. Le PC doit-il garder une copie locale, ou peut-il sortir complètement du dispositif ?
-6. Borg + borgmatic (recommandé) ou restic ?
+À lancer sur `ichigo` (lecture seule) :
 
-Sources : [borgmatic](https://torsion.org/borgmatic/) et ses [notes de version 2.1.6](https://projects.torsion.org/borgmatic-collective/borgmatic/releases/tag/2.1.6), [BorgBackup](https://www.borgbackup.org/), [restic](https://restic.net/), [Hetzner Storage Box](https://www.hetzner.com/storage-box), [Healthchecks.io](https://healthchecks.io/).
+```bash
+docker ps --format '{{.Names}}\t{{.Image}}'                  # conteneurs : Bitwarden officiel ou Vaultwarden ? quels Postgres ?
+docker system df -v | sed -n '/Local Volumes/,/Build cache/p' # taille des volumes Docker
+docker inspect -f '{{.Name}} {{range .Mounts}}{{.Source}} {{end}}' $(docker ps -q)  # dossiers montés
+sudo du -sh /etc /root /home /opt /srv /var/www /etc/letsencrypt 2>/dev/null
+```
+
+## Questions encore ouvertes
+
+1. Bitwarden **officiel** (base MSSQL, sauvegarde intégrée dans `bwdata/mssql/backups`) ou **Vaultwarden** (SQLite) ? La méthode de dump en dépend.
+2. Où sont les données Docker : volumes nommés ou dossiers montés (et lesquels) ?
+3. Les sources MkDocs sont-elles toutes dans git ?
+4. Un compte Cloudflare (pour R2) est-il acceptable, sachant qu'un moyen de paiement est probablement demandé même pour l'offre gratuite ? Sinon : Backblaze B2.
+5. Le PC garde-t-il une 2ᵉ copie (recommandé, gratuit) ?
+
+Sources : [restic](https://restic.net/), [resticprofile](https://creativeprojects.github.io/resticprofile/), [tarifs Cloudflare R2](https://developers.cloudflare.com/r2/pricing/), [calculateur R2](https://r2-calculator.cloudflare.com/), [tarifs Backblaze B2 (oct. 2026)](https://upstash.com/blog/backblaze-b2-pricing-explained-2026.md), [restic + R2](https://rohitkumarankam.pages.dev/blog/r2-restic-backups), [Healthchecks.io](https://healthchecks.io/), [borgmatic](https://torsion.org/borgmatic/).

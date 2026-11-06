@@ -4,7 +4,8 @@ Sauvegarde des serveurs Linux personnels (serveur principal : `ichigo`).
 
 - **Aujourd'hui** : scripts bash lancés depuis le PC, qui tirent le disque des serveurs par `rsync` puis l'archivent en `.tar.gz` ([existant](docs/technique/existant.md)).
 - **Problème** : PC obligatoirement allumé, bande passante, pas de chiffrement ni de déduplication, succès annoncé même en cas d'échec ([problèmes connus](docs/technique/problemes-connus.md)).
-- **Cible proposée, pas encore validée** : borgmatic sur chaque serveur, qui pousse vers un stockage distant chiffré, avec supervision Healthchecks et Discord ([nouvelle solution](docs/technique/nouvelle-solution.md)).
+- **Cible proposée, pas encore validée** : restic + resticprofile sur le serveur, qui pousse chaque nuit les données utiles (dumps PostgreSQL, Bitwarden, configs, volumes Docker) vers un stockage objet gratuit (Cloudflare R2), avec supervision Healthchecks et Discord ; le PC garde une 2ᵉ copie facultative ([nouvelle solution](docs/technique/nouvelle-solution.md)).
+- **Contraintes** : un seul serveur, aucun budget, ≈ 20 Go sur le disque.
 
 Ce fichier est le point d'entrée pour tout développement, humain ou IA.
 
@@ -54,7 +55,7 @@ Skills copiés dans `.claude/skills/` à des versions épinglées (même base qu
 | Agent | Modèle | Usage |
 |---|---|---|
 | `explorer` | Haiku | Recherche dans le dépôt et son historique |
-| `docs-researcher` | Haiku | Vérification de documentation (borg, borgmatic, restic, systemd…) |
+| `docs-researcher` | Haiku | Vérification de documentation (restic, resticprofile, R2, systemd…) |
 | `implementer` | Sonnet | Scripts, configuration, documentation |
 | `reviewer` | Sonnet | Relecture |
 | `security-auditor` | Opus | Audit de sécurité |

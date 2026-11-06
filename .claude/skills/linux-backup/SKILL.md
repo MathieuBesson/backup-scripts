@@ -26,7 +26,19 @@ Lire d'abord `docs/technique/nouvelle-solution.md` (cible et décisions) et `doc
 
 Pour ces opérations : montrer la commande, l'effet attendu (simulation), puis attendre.
 
-## Repères borgmatic
+## Repères restic + resticprofile (solution retenue en proposition)
+
+```bash
+resticprofile <profil>.backup        # backup manuel avec hooks
+resticprofile <profil>.snapshots
+resticprofile <profil>.check
+resticprofile <profil>.forget --dry-run
+restic restore latest --target /tmp/restore-test --include /etc/apache2
+```
+
+Sans budget, surveiller les quotas du stockage gratuit (volume, opérations de lecture d'un `check --read-data`).
+
+## Repères borgmatic (si un stockage Borg est un jour retenu)
 
 ```bash
 borgmatic config validate -c <fichier>     # valider la configuration
@@ -40,7 +52,7 @@ borgmatic prune --dry-run --list           # voir ce que la rétention supprimer
 
 Vérifier les options exactes dans la documentation de la version installée (`borgmatic --version`, https://torsion.org/borgmatic/) : les noms d'options ont changé entre 1.x et 2.x. Ne pas les deviner.
 
-## Repères restic (si retenu)
+## Autres commandes restic
 
 ```bash
 restic snapshots ; restic check --read-data-subset=5% ; restic restore latest --target /tmp/restore-test --include /etc
